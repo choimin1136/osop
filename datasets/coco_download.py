@@ -8,7 +8,7 @@ dataDir = 'datasets'
 dataType = 'val2017'
 
 # initialize COCO api for person keypoints annotations
-annFile = '/{}/annotations/person_keypoints_{}.json'.format(dataDir,dataType)
+annFile = '{}/annotations/person_keypoints_{}.json'.format(dataDir,dataType)
 coco = COCO(annFile)
 
 cats = coco.loadCats(coco.getCatIds())
