@@ -36,3 +36,4 @@ print(dtype_list)
 
 
 print(ann_val[dtype_list])
+print(ann_val[~ dtype_list])
