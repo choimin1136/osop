@@ -12,7 +12,7 @@ import torch.utils.data
 from torch.autograd import Variable
 
 import torchvision
-from roialign import roi_align
+
 
 
 
@@ -45,11 +45,13 @@ class SamePad2d(nn.Module):
   
     
 # mask부분의 conv2d는 input으로 (7,7) 사이즈의 피쳐맵을 받음.
-# 피쳐맵은 roialign을 통과해 나온 output값으로, 단일 피쳐맵이기 때문에,
+# 피쳐맵은 roialign을 통과해 나온 output값으로,
 # [batch_size,num_rois,channels,pool_height, pool_width]의 값을 가지고 있다. 
-#    
+# 단, test할때 단일 이미지를 가지고 하는경우 batch_size를 생략해야하고, 생성자부분도
+# 체크해서 생략해 주어야 함.
+
 class Mask(nn.Module):
-    def __init__(self, batch_size,num_rois, num_classes,pool_height,pool_weight):
+    def __init__(self, batch_size,num_rois,in_channels,num_classes,pool_height,pool_weight):
         super(Mask, self).__init__()
         self.batch_size = batch_size
         self.num_rois = num_rois
@@ -57,10 +59,10 @@ class Mask(nn.Module):
         self.pool_height = pool_height
         self.pool_weight = pool_weight
         self.padding = SamePad2d(kernel_size=3,stride=1)
-        self.conv1 = nn.Conv2d(self.num_classes, 80, kernel_size=3, stride=1)
+        self.conv1 = nn.Conv2d(self.in_channels, 80, kernel_size=3, stride=1)
         self.bn1 = nn.BatchNorm2d(80, eps=0.001)
         self.deconv = nn.ConvTranspose2d(80, 80, kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(80, 80, kernel_size=3, stride=1)
+        self.conv2 = nn.Conv2d(self.num_classes, 80, kernel_size=3, stride=1)
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU(inplace=True)
         
@@ -68,7 +70,6 @@ class Mask(nn.Module):
     #input으로 받으면 된다.
     #forward의 첫번째 x는 roi_align의 아웃풋을 받는것으로, 설정해두었다.
     def forward(self, x):
-        x = roi_align(x)
         x = self.conv1(self.padding(x))
         x = self.bn1(x)
         x = self.relu(x)
