@@ -49,6 +49,11 @@ class SamePad2d(nn.Module):
 # [batch_size,num_rois,channels,pool_height, pool_width]의 값을 가지고 있다. 
 # 단, test할때 단일 이미지를 가지고 하는경우 batch_size를 생략해야하고, 생성자부분도
 # 체크해서 생략해 주어야 함.
+# 도식상, roi_align에서 나온 값을 256채널로 받고, 이후 80(num_classes)로 내보낸 것으로
+# 파악. num_classes = 80인 이유는 기존의 모델이 coco데이터 셋을 통한 학습 모델이며,
+# coco데이터셋을 기준으로 num_classes의 수가 80으로 설정되어있는것으로 파악
+# 추가적으로 deconv층은 효율에 쓸지 안쓸지 여부를 결정하면 될것으로 파악됨.
+# 모델의 도식을 고려하여, 추가적으로 deconv층을 주석처리 하였음.
 
 class Mask(nn.Module):
     def __init__(self, batch_size,num_rois,in_channels,num_classes,pool_height,pool_weight):
@@ -59,10 +64,10 @@ class Mask(nn.Module):
         self.pool_height = pool_height
         self.pool_weight = pool_weight
         self.padding = SamePad2d(kernel_size=3,stride=1)
-        self.conv1 = nn.Conv2d(self.in_channels, 80, kernel_size=3, stride=1)
-        self.bn1 = nn.BatchNorm2d(80, eps=0.001)
-        self.deconv = nn.ConvTranspose2d(80, 80, kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(self.num_classes, 80, kernel_size=3, stride=1)
+        self.conv1 = nn.Conv2d(self.in_channels, 256, kernel_size=3, stride=1)
+        self.bn1 = nn.BatchNorm2d(256, eps=0.001)
+        # self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
+        self.conv2 = nn.Conv2d(256,self.num_classes, kernel_size=3, stride=1)
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU(inplace=True)
         
@@ -73,7 +78,7 @@ class Mask(nn.Module):
         x = self.conv1(self.padding(x))
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.deconv(x)
+        # x = self.deconv(x)
         x = self.conv2(self.padding(x))
         x = self.sigmoid(x)
         p_mask = x
