@@ -23,7 +23,7 @@ og_img = cv2.imread('test1.jpg')
 
 
 cv2.setUseOptimized(True)
-ss = cv2.ximgproc.segmentation.SelectiveSearchSegmentation()
+ss = cv2.Algorithm
 
 ss.setBaseImage(og_img)
 ss.switchToSelectiveSearchFast()
