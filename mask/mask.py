@@ -60,6 +60,7 @@ class Mask(nn.Module):
         super(Mask, self).__init__()
         self.batch_size = batch_size
         self.num_rois = num_rois
+        self.in_channels = in_channels
         self.num_classes = num_classes
         self.pool_height = pool_height
         self.pool_weight = pool_weight
