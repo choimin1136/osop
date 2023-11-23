@@ -56,7 +56,7 @@ class SamePad2d(nn.Module):
 # 모델의 도식을 고려하여, 추가적으로 deconv층을 주석처리 하였음.
 
 class Mask(nn.Module):
-    def __init__(self, batch_size,num_rois,in_channels,num_classes,pool_height,pool_weight):
+    def __init__(self, batch_size,num_rois,in_channels,pool_height,pool_weight,num_classes):
         super(Mask, self).__init__()
         self.batch_size = batch_size
         self.num_rois = num_rois
