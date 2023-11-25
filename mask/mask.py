@@ -55,34 +55,81 @@ class SamePad2d(nn.Module):
 # 추가적으로 deconv층은 효율에 쓸지 안쓸지 여부를 결정하면 될것으로 파악됨.
 # 모델의 도식을 고려하여, 추가적으로 deconv층을 주석처리 하였음.
 
-class Mask(nn.Module):
-    def __init__(self, batch_size,num_rois,in_channels,pool_height,pool_weight,num_classes):
-        super(Mask, self).__init__()
-        self.batch_size = batch_size
-        self.num_rois = num_rois
-        self.in_channels = in_channels
-        self.num_classes = num_classes
-        self.pool_height = pool_height
-        self.pool_weight = pool_weight
-        self.padding = SamePad2d(kernel_size=3,stride=1)
-        self.conv1 = nn.Conv2d(self.in_channels, 256, kernel_size=3, stride=1)
-        self.bn1 = nn.BatchNorm2d(256, eps=0.001)
-        # self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(256,self.num_classes, kernel_size=3, stride=1)
-        self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU(inplace=True)
+# class Mask(nn.Module):
+#     def __init__(self, batch_size,num_rois,in_channels,pool_height,pool_weight,num_classes):
+#         super(Mask, self).__init__()
+#         self.batch_size = batch_size
+#         self.num_rois = num_rois
+#         self.in_channels = in_channels
+#         self.num_classes = num_classes
+#         self.pool_height = pool_height
+#         self.pool_weight = pool_weight
+#         self.padding = SamePad2d(kernel_size=3,stride=1)
+#         self.conv1 = nn.Conv2d(self.in_channels, 256, kernel_size=3, stride=1)
+#         self.bn1 = nn.BatchNorm2d(256, eps=0.001)
+#         # self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
+#         self.conv2 = nn.Conv2d(256,self.num_classes, kernel_size=3, stride=1)
+#         self.sigmoid = nn.Sigmoid()
+#         self.relu = nn.ReLU(inplace=True)
         
-    #mask의 input은 roi aling의 output 중에, batch_size,rois,num_classes,pool_height,pool_weight만
-    #input으로 받으면 된다.
-    #forward의 첫번째 x는 roi_align의 아웃풋을 받는것으로, 설정해두었다.
-    def forward(self, x):
-        x = self.conv1(self.padding(x))
-        x = self.bn1(x)
-        x = self.relu(x)
-        # x = self.deconv(x)
-        x = self.conv2(self.padding(x))
-        x = self.sigmoid(x)
-        p_mask = x
-        return p_mask
+#     #mask의 input은 roi aling의 output 중에, batch_size,rois,num_classes,pool_height,pool_weight만
+#     #input으로 받으면 된다.
+#     #forward의 첫번째 x는 roi_align의 아웃풋을 받는것으로, 설정해두었다.
+#     def forward(self, x):
+#         x = self.conv1(self.padding(x))
+#         x = self.bn1(x)
+#         x = self.relu(x)
+#         # x = self.deconv(x)
+#         x = self.conv2(self.padding(x))
+#         x = self.sigmoid(x)
+#         p_mask = x
+#         return p_mask
     
-       
+class SamePad2d(nn.Module):
+    """Mimics tensorflow's 'SAME' padding.
+    """
+
+    def __init__(self, kernel_size, stride):
+        super(SamePad2d, self).__init__()
+        self.kernel_size = torch.nn.modules.utils._pair(kernel_size)
+        self.stride = torch.nn.modules.utils._pair(stride)
+
+    def forward(self, input):
+        in_width = input.size()[2]
+        in_height = input.size()[3]
+        out_width = math.ceil(float(in_width) / float(self.stride[0]))
+        out_height = math.ceil(float(in_height) / float(self.stride[1]))
+        pad_along_width = ((out_width - 1) * self.stride[0] +
+                           self.kernel_size[0] - in_width)
+        pad_along_height = ((out_height - 1) * self.stride[1] +
+                            self.kernel_size[1] - in_height)
+        pad_left = math.floor(pad_along_width / 2)
+        pad_top = math.floor(pad_along_height / 2)
+        pad_right = pad_along_width - pad_left
+        pad_bottom = pad_along_height - pad_top
+        return F.pad(input, (pad_left, pad_right, pad_top, pad_bottom), 'constant', 0)
+
+    def __repr__(self):
+        return self.__class__.__name__
+
+class Mask(nn.Module):
+  def __init__(self, num_classes):
+      super(Mask, self).__init__()
+      self.num_classes = num_classes
+      self.padding = SamePad2d(kernel_size=3,stride=1)
+      self.conv1 = nn.Conv2d(2048, 256, kernel_size=3, stride=1)
+      self.bn1 = nn.BatchNorm2d(256, eps=0.001)
+      self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
+      self.conv2 = nn.Conv2d(80,self.num_classes, kernel_size=3, stride=1)
+      self.sigmoid = nn.Sigmoid()
+      self.relu = nn.ReLU(inplace=True)
+
+  def forward(self, x):
+    x = self.conv1(self.padding(x))
+    x = self.bn1(x)
+    x = self.relu(x)
+    x = self.deconv(x)
+    x = self.conv2(self.padding(x))
+    x = self.sigmoid(x)
+    p_mask = x
+    return p_mask

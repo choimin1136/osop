@@ -68,11 +68,83 @@ aligned: false이면 legacy implementation 사용/ False로 기본 설정해둠
 #output: The pooled RoIs:잘린 피쳐맵[n,c,pw,ph] => dtype: tensor.float
 
 """
-def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampling_ratio=-1, aligned=False):
-    _, _, height, width = input.size()
+# def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampling_ratio=-1, aligned=False):
+#     _, _, height, width = input.size()
+
+#     n, c, ph, pw = dims(4)
+#     #print(n,c,ph,pw)
+#     ph.size = pooled_height
+#     pw.size = pooled_width
+#     offset_rois = rois[n]
+#     roi_batch_ind = offset_rois[0].int()
+#     offset = 0.5 if aligned else 0.0
+#     roi_start_w = offset_rois[1] * spatial_scale - offset
+#     roi_start_h = offset_rois[2] * spatial_scale - offset
+#     roi_end_w = offset_rois[3] * spatial_scale - offset
+#     roi_end_h = offset_rois[4] * spatial_scale - offset
+
+#     roi_width = roi_end_w - roi_start_w
+#     roi_height = roi_end_h - roi_start_h
+#     if not aligned:
+#         roi_width = torch.clamp(roi_width, min=1.0)
+#         roi_height = torch.clamp(roi_height, min=1.0)
+
+#     bin_size_h = roi_height / pooled_height
+#     bin_size_w = roi_width / pooled_width
+
+#     offset_input = input[roi_batch_ind][c]
+
+#     roi_bin_grid_h = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_height / pooled_height)
+#     roi_bin_grid_w = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_width / pooled_width)
+
+#     count = torch.clamp(roi_bin_grid_h * roi_bin_grid_w, min=1)
+
+#     iy, ix = dims(2)
+
+#     iy.size = height  # < roi_bin_grid_h
+#     ix.size = width  # < roi_bin_grid_w
+
+#     #roi 공간에 따른 픽셀 위치 설정
+#     y = roi_start_h + ph * bin_size_h + (iy + 0.5) * bin_size_h / roi_bin_grid_h
+#     x = roi_start_w + pw * bin_size_w + (ix + 0.5) * bin_size_w / roi_bin_grid_w
+#     ymask = iy < roi_bin_grid_h
+#     xmask = ix < roi_bin_grid_w
+
+#     #쌍선형 보간 수행
+#     val = bilinear_interpolate(offset_input, x, y, width, height, xmask, ymask)
+
+#     #유효한 위치에 대한 마스킹 및 피쳐 맵 풀링
+#     val = torch.where(ymask, val, 0)
+#     val = torch.where(xmask, val, 0)
+#     output = val.sum((iy, ix))
+#     output /= count
+#     return output.order(n, c, pw, ph)
+
+#테스트 코드
+# This could be an output from a convolutional layer of a CNN
+# features = torch.ones(1, 256, 28,28)
+
+# rois = torch.tensor([
+#     [0, 60, 60, 100, 100],    #[이미지의 인덱스, 왼쪽위 x,왼쪽위 y, 오른쪽아래 x,오른쪽아래 y] *바운딩 박스의 x,y죄표
+#     [0, 120, 120, 160, 160]
+# ], dtype=torch.float)
+# print(rois.shape)
+# spatial_scale = 1.0 / 8.0
+
+# Call the roi_align function
+# pooled_features = roi_align(features, rois, spatial_scale)
+# output_size = 7
+# print(f"제작:{pooled_features.shape}")
+
+#기작성된 함수 불러섭 비교
+#from torchvision.ops import roi_align as roi_align_torchvision
+#print(f"파이토치 함수:{roi_align_torchvision(features, rois, output_size, spatial_scale).sum()}")
+
+
+def roi_align(feature, rois, spatial_scale, pooled_width=16, pooled_height=16, sampling_ratio=-1, aligned=False):
+    _, _, height, width = feature.size()
 
     n, c, ph, pw = dims(4)
-    #print(n,c,ph,pw)
     ph.size = pooled_height
     pw.size = pooled_width
     offset_rois = rois[n]
@@ -92,7 +164,7 @@ def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampl
     bin_size_h = roi_height / pooled_height
     bin_size_w = roi_width / pooled_width
 
-    offset_input = input[roi_batch_ind][c]
+    offset_input = feature[roi_batch_ind][c]
 
     roi_bin_grid_h = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_height / pooled_height)
     roi_bin_grid_w = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_width / pooled_width)
@@ -119,23 +191,3 @@ def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampl
     output = val.sum((iy, ix))
     output /= count
     return output.order(n, c, pw, ph)
-
-#테스트 코드
-# This could be an output from a convolutional layer of a CNN
-# features = torch.ones(1, 256, 28,28)
-
-# rois = torch.tensor([
-#     [0, 60, 60, 100, 100],    #[이미지의 인덱스, 왼쪽위 x,왼쪽위 y, 오른쪽아래 x,오른쪽아래 y] *바운딩 박스의 x,y죄표
-#     [0, 120, 120, 160, 160]
-# ], dtype=torch.float)
-# print(rois.shape)
-# spatial_scale = 1.0 / 8.0
-
-# Call the roi_align function
-# pooled_features = roi_align(features, rois, spatial_scale)
-# output_size = 7
-# print(f"제작:{pooled_features.shape}")
-
-#기작성된 함수 불러섭 비교
-#from torchvision.ops import roi_align as roi_align_torchvision
-#print(f"파이토치 함수:{roi_align_torchvision(features, rois, output_size, spatial_scale).sum()}")
