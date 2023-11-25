@@ -1,66 +1,55 @@
+import os
+from datasets.s_coco_set import CustomDataset
+from torchvision.transforms import transforms
 import torch
-import torchvision.transforms as transforms
-import selectivesearch
-from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-import numpy as np
-import cv2
-
-# 모델 정의
-weight = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-model = fasterrcnn_resnet50_fpn(weight=weight,pretrained=True)
-model.eval()
-
-# 이미지 전처리 함수
-def preprocess_image(image):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
-    return transform(image).unsqueeze(0)
-
-# 이미지 로드
-og_img = cv2.imread('test1.jpg')
+import pandas as pd
 
 
-cv2.setUseOptimized(True)
-ss = cv2.Algorithm
+# Define transformations
+transform = transforms.Compose([
+    transforms.Resize((1024, 1024)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
 
-ss.setBaseImage(og_img)
-ss.switchToSelectiveSearchFast()
+# Create custom dataset and dataloader
+root_folder = 'datasets/'
+custom_dataset = CustomDataset(root_folder, transform=transform)
+# print(custom_dataset.__getitem__(1)[1].shape)
+dataloader = torch.utils.data.DataLoader(custom_dataset, batch_size=1, shuffle=True)
 
-rects = ss.process()
+# Iterate through the dataloader
+
+datas=[]
+for inputs, annotations in dataloader:
+    datas.append((inputs,annotations))
+
+    # annotation test
+
+    print(inputs.shape)
+
+    print(len(annotations))
+
+    for i in annotations:
+        print("""
+[ Annotations key list ]
+    1. segmentation: 마스크 데이터
+    2. area: segmentation에 대한 전체 넓이
+    3. iscrowd: 군집화 분류
+    4. image_id: annotation가 속한 image의 id값
+    5. bbox: bounding box
+    6. category_id: 분류 id
+    7. id: annotation이 할당 받은 id
+              
+▼▼▼ 아래는 annotation에 대한 key 값과 각 예시 데이터 ▼▼▼""")
+        print(list(i.keys()))
+        for key, value in i.items():
+            print(f'[ key: {key} ]')
+            print(f'    value: {value}')
+            print()
+        break
+    break
 
 
-# Selective Search로 후보 영역 얻기
-# _, regions = selectivesearch.selective_search(og_img, min_size=2000)
-
-# # 모델을 적용한 박스 중에 score값이 0.6 이상인 박스만 추출
-boxes = []
-scores = []
-for rect in rects:
-    x, y, w, h = rect['rect']
-    # cv2.rectangle(og_img,(x,y),(x+w,y+h),(0,255,0))
-    box_image = og_img[y:y+h, x:x+w]
-    # cv2.imshow('test',box_image)
-    # cv2.waitKey(0)
-    # break
-
-    input_tensor = preprocess_image(box_image)
-    
-    with torch.no_grad():
-        prediction = model(input_tensor)
-    print(prediction)
-    # print(np.argmax(prediction, axis=1))
-
-    if torch.any(prediction[0]['scores'] >= 0.5):
-        boxes.append(prediction[0]['boxes'].numpy())
-        scores.append(prediction[0]['scores'].numpy())
-        cv2.rectangle(og_img,(x,y),(x+w,y+h),(0,255,0))
-        
-# print(scores)
-
-
-# mapping한 이미지를 cv2를 이용해 시각화
-cv2.imshow('Mapped Image with NMS', og_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    if len(datas) >= 10:
+        break
