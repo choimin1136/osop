@@ -1,6 +1,4 @@
-cd datasets
-mkdir images
-cd images
+cd datasets/images
 
 wget http://images.cocodataset.org/zips/train2017.zip -O coco_train2017.zip
 wget http://images.cocodataset.org/zips/val2017.zip -O coco_val2017.zip

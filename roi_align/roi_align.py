@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn.functional as F
 from functorch.dim import dims
@@ -120,19 +122,19 @@ def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampl
 
 #테스트 코드
 # This could be an output from a convolutional layer of a CNN
-features = torch.ones(1, 256, 28,28)
+# features = torch.ones(1, 256, 28,28)
 
-rois = torch.tensor([
-    [0, 60, 60, 100, 100],    #[이미지의 인덱스, 왼쪽위 x,왼쪽위 y, 오른쪽아래 x,오른쪽아래 y] *바운딩 박스의 x,y죄표
-    [0, 120, 120, 160, 160]
-], dtype=torch.float)
-print(rois.shape)
-spatial_scale = 1.0 / 8.0
+# rois = torch.tensor([
+#     [0, 60, 60, 100, 100],    #[이미지의 인덱스, 왼쪽위 x,왼쪽위 y, 오른쪽아래 x,오른쪽아래 y] *바운딩 박스의 x,y죄표
+#     [0, 120, 120, 160, 160]
+# ], dtype=torch.float)
+# print(rois.shape)
+# spatial_scale = 1.0 / 8.0
 
 # Call the roi_align function
-pooled_features = roi_align(features, rois, spatial_scale)
-output_size = 7
-print(f"제작:{pooled_features.shape}")
+# pooled_features = roi_align(features, rois, spatial_scale)
+# output_size = 7
+# print(f"제작:{pooled_features.shape}")
 
 #기작성된 함수 불러섭 비교
 #from torchvision.ops import roi_align as roi_align_torchvision

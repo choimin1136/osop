@@ -191,8 +191,8 @@ def bilinear_interpolate(input, x, y, width, height, xmask,  ymask):
 
     return val
 
-def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampling_ratio=-1, aligned=False):
-    _, _, height, width = input.size()
+def roi_align(feature, rois, spatial_scale, pooled_width=16, pooled_height=16, sampling_ratio=-1, aligned=False):
+    _, _, height, width = feature.size()
 
     n, c, ph, pw = dims(4)
     ph.size = pooled_height
@@ -223,10 +223,7 @@ def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampl
     bin_size_h = roi_height / pooled_height
     bin_size_w = roi_width / pooled_width
 
-    print("roi_batch_ind:", roi_batch_ind)
-    print("input size:", input.size())
-
-    offset_input = input[roi_batch_ind][0]
+    offset_input = feature[roi_batch_ind][c]
 
     roi_bin_grid_h = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_height / pooled_height)
     roi_bin_grid_w = sampling_ratio if sampling_ratio > 0 else torch.ceil(roi_width / pooled_width)
@@ -254,9 +251,11 @@ def roi_align(input, rois, spatial_scale, pooled_width=7, pooled_height=7, sampl
     output /= count
     return output.order(n, c, pw, ph)
     
+valid_rois = rois_tensor[:, 0] < features.size(0)
+filtered_rois_tensor = rois_tensor[valid_rois]
 spatial_scale = 1.0 / 8.0
-pooled_featrues = roi_align(features, rois_tensor, spatial_scale)
-
+pooled_featrues = roi_align(features, filtered_rois_tensor, spatial_scale)
+# print(pooled_featrues.size())
 #====================[mask]==================================================
 
 class SamePad2d(nn.Module):
@@ -287,32 +286,37 @@ class SamePad2d(nn.Module):
         return self.__class__.__name__
 
 class Mask(nn.Module):
-    def __init__(self, batch_size,num_rois,in_channels,pool_height,pool_weight,num_classes):
-        super(Mask, self).__init__()
-        self.batch_size = batch_size
-        self.num_rois = num_rois
-        self.in_channels = in_channels
-        self.num_classes = num_classes
-        self.pool_height = pool_height
-        self.pool_weight = pool_weight
-        self.padding = SamePad2d(kernel_size=3,stride=1)
-        self.conv1 = nn.Conv2d(self.in_channels, 256, kernel_size=3, stride=1)
-        self.bn1 = nn.BatchNorm2d(256, eps=0.001)
-        # self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(256,self.num_classes, kernel_size=3, stride=1)
-        self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU(inplace=True)
-        
-    #mask의 input은 roi aling의 output 중에, batch_size,rois,num_classes,pool_height,pool_weight만
-    #input으로 받으면 된다.
-    #forward의 첫번째 x는 roi_align의 아웃풋을 받는것으로, 설정해두었다.
-    def forward(self, x):
-        x = self.conv1(self.padding(x))
-        x = self.bn1(x)
-        x = self.relu(x)
-        # x = self.deconv(x)
-        x = self.conv2(self.padding(x))
-        x = self.sigmoid(x)
-        p_mask = x
-        return p_mask
-    
+  def __init__(self, num_classes):
+      super(Mask, self).__init__()
+      self.num_classes = num_classes
+      self.padding = SamePad2d(kernel_size=3,stride=1)
+      self.conv1 = nn.Conv2d(2048, 256, kernel_size=3, stride=1)
+      self.bn1 = nn.BatchNorm2d(256, eps=0.001)
+      self.deconv = nn.ConvTranspose2d(256, 80, kernel_size=2, stride=2)
+      self.conv2 = nn.Conv2d(80,self.num_classes, kernel_size=3, stride=1)
+      self.sigmoid = nn.Sigmoid()
+      self.relu = nn.ReLU(inplace=True)
+
+  def forward(self, x):
+    x = self.conv1(self.padding(x))
+    x = self.bn1(x)
+    x = self.relu(x)
+    x = self.deconv(x)
+    x = self.conv2(self.padding(x))
+    x = self.sigmoid(x)
+    p_mask = x
+    return p_mask
+
+mask = Mask(num_classes=80)
+mask_out = mask(pooled_featrues)
+
+# 마스크 loss 
+mask_prediction = mask_out  # 모델이 예측한 마스크 값
+mask_target = torch.rand_like(mask_out, dtype=torch.float)
+
+# BCELoss를 사용하여 마스크 손실 계산
+mask_criterion = nn.BCELoss()
+mask_loss = mask_criterion(mask_prediction, mask_target)
+
+# 마스크 손실 출력
+print("Mask Loss:", mask_loss.item())

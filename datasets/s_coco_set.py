@@ -19,11 +19,11 @@ class CustomDataset(Dataset):
         with open(annotation_name, 'r') as f:
             ann_info = json.load(f)
         if ann_info:
-            print(ann_info.keys())
+            # print(ann_info.keys())
             self.categories=ann_info['categories']
             self.image_info=ann_info['images']
-            # print(self.image_info[0])
             self.annotations=ann_info['annotations']
+            # print(self.categories)
 
 
         self.image_list = os.listdir(self.image_folder)
@@ -56,26 +56,26 @@ class CustomDataset(Dataset):
         return image, ann_list
 
 # Define transformations
-transform = transforms.Compose([
-    transforms.Resize((1024, 1024)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+# transform = transforms.Compose([
+#     transforms.Resize((1024, 1024)),
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+# ])
 
-# Create custom dataset and dataloader
-root_folder = 'datasets/'
-custom_dataset = CustomDataset(root_folder, transform=transform)
-# print(custom_dataset.__getitem__(1)[1].shape)
-dataloader = torch.utils.data.DataLoader(custom_dataset, batch_size=1, shuffle=True)
+# # Create custom dataset and dataloader
+# root_folder = 'datasets/'
+# custom_dataset = CustomDataset(root_folder, transform=transform)
+# # print(custom_dataset.__getitem__(1)[1].shape)
+# dataloader = torch.utils.data.DataLoader(custom_dataset, batch_size=1, shuffle=True)
 
-# Iterate through the dataloader
+# # Iterate through the dataloader
 
-datas=[]
-for inputs, annotations in dataloader:
-    # Your processing logic here
-    if len(datas) > 10:
-        print(inputs.shape,len(annotations))
-        datas.append((inputs,annotations))
-        break
+# datas=[]
+# for inputs, annotations in dataloader:
+#     # Your processing logic here
+#     # print("hear----------------------")
+#     # print(inputs.shape,len(annotations))
+#     datas.append((inputs,annotations))
+#     if len(datas) >= 10:
+#         break
 
-print(len(datas))
