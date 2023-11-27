@@ -39,13 +39,14 @@ class CustomDataset(Dataset):
 
 
         img_name = os.path.join(self.image_folder, file_name)
+        print(img_name)
 
         image = Image.open(img_name).convert('RGB')
         ann_list = []
         for annotation in self.annotations:
             if annotation['image_id'] == image_id:
                 ann_list.append(annotation)
-
+        print(ann_list)
 
         # Your parsing logic here based on the structure of your JSON annotations
 
@@ -54,8 +55,17 @@ class CustomDataset(Dataset):
             image = self.transform(image)
 
         return image, ann_list
+    
+def get_label_list():
+    label_list=['background']
 
-# Define transformations
+    with open("datasets/coco-labels-2014_2017.txt", "r") as f:
+        for line in f:
+            label_list.append(line)
+    
+    return label_list
+
+# # Define transformations
 # transform = transforms.Compose([
 #     transforms.Resize((1024, 1024)),
 #     transforms.ToTensor(),
@@ -76,6 +86,5 @@ class CustomDataset(Dataset):
 #     # print("hear----------------------")
 #     # print(inputs.shape,len(annotations))
 #     datas.append((inputs,annotations))
-#     if len(datas) >= 10:
-#         break
-
+#     # if len(datas) >= 10:
+#     break
