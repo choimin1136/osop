@@ -4,8 +4,20 @@ from PIL import Image
 import cv2
 import numpy as np
 import random
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2, MaskRCNN_ResNet50_FPN_V2_Weights
+from torchvision.models.detection import mask_rcnn
+import torch
+from torchvision.transforms import transforms
+
+import matplotlib.pyplot as plt
 
 import importlib
+
+print(len(mask_rcnn._COCO_CATEGORIES))
+
+model = maskrcnn_resnet50_fpn_v2(pretrained=True)
+model.eval()
+model.cuda()
 
 colors = []
 for _ in range(50):
@@ -62,8 +74,6 @@ ann_list=[
      'category_id': 40, 
      'id': 1472121}
 ]
-
-
 
 
 ### categories ###
@@ -128,6 +138,40 @@ def masking_img(datas):
 
     return img, mask
 
+def load_mask_rcnn(image):
+    file_byte=np.array(bytearray(image.read()),dtype=np.uint8)
+    # print(type(file_byte))
+    
+    img=cv2.imdecode(file_byte,1)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    print(img.shape)
+    
+    st.image(img)
+    print(img.shape)
+    
+    preprocess = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    
+    img_tensor = preprocess(img)
+    img_tensor = img_tensor.unsqueeze(0).cuda()
+    
+    print(img_tensor.shape)
+    
+    predict = model(img_tensor)
+    print(predict)
+    predict=predict[0]
+
+    for i in range(len(predict['labels'])):
+        if predict['scores'].data[i].item() > 0.9:
+            img = (predict['masks'][i].squeeze(0).detach().cpu().numpy())
+            
+            img=np.stack([img]*3, axis=-1)
+            # print(to_pil_image(predict['masks']))
+            # print(img.shape)
+            st.text(mask_rcnn._COCO_CATEGORIES[predict['labels'][i]])
+            st.image(img)
+
         
 
 ### object remove & lama painting ###
@@ -137,6 +181,8 @@ def remove_lama():
 
 
 st.title("ONE SHOT ONE PICK", anchor="/")
+
+
 
 empty1, con1, empty2 = st.columns([1,8,1])
 
@@ -155,8 +201,10 @@ with con1:
         with col1:
             if image:
                     st.image(image,use_column_width=True)
+                    load_mask_rcnn(image=image)
+                    
             else:
-                st.image('web/asssets/not_found_img.png', use_column_width=True)
+                st.image('web/assets/not_found_img.png', use_column_width=True)
 
         with col2:
             if image:
@@ -186,7 +234,7 @@ with con1:
             if pick_image:
                 st.image(pick_image,use_column_width=True)
             else:
-                st.image('web/asssets/not_found_img.png',use_column_width=True)
+                st.image('web/assets/not_found_img.png',use_column_width=True)
 
         with col2:
             if pick_image:
