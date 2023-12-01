@@ -36,23 +36,24 @@ import cv2
 import io
 # print(torch.cuda.is_available())
 
-simple_lama = SimpleLama()
+# simple_lama = SimpleLama()
 
-img_path = "web/assets/000000356094.jpg"
-mask_path = "web/assets/000000356094_mask.jpg"
+# img_path = "web/assets/000000356094.jpg"
+# mask_path = "web/assets/000000356094_mask.jpg"
 
-np_image = cv2.imread(img_path)
-np_mask = cv2.imread(mask_path)
+# np_image = cv2.imread(img_path)
+# np_mask = cv2.imread(mask_path)
+# # print(type(image),type(mask))
+
+
+
+# image = Image.open(img_path)
+# mask = Image.open(mask_path)
+
 # print(type(image),type(mask))
 
 
+# result = simple_lama(np_image, np_mask)
+# print(type(result))
+# # result.save("web/assets/inpainted.jpg")
 
-image = Image.open(img_path)
-mask = Image.open(mask_path)
-
-print(type(image),type(mask))
-
-
-result = simple_lama(np_image, np_mask)
-print(type(result))
-# result.save("web/assets/inpainted.jpg")

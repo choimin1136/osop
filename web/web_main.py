@@ -185,8 +185,9 @@ def remove_lama(image, mask):
     result = lama(image, mask)
     return result
 
-
-st.title("ONE SHOT ONE PICK", anchor="/")
+logo=Image.open('web/assets/osop_logo.png')
+# st.title("ONE SHOT ONE PICK", anchor="/")
+st.image(logo,width=300)
 
 
 
