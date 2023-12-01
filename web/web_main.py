@@ -9,6 +9,7 @@ from torchvision.models.detection import mask_rcnn
 from torchvision.transforms import transforms
 from torchvision.models.detection import maskrcnn_resnet50_fpn
 from simple_lama_inpainting import SimpleLama
+import torch
 
 import matplotlib.pyplot as plt
 
@@ -18,7 +19,8 @@ print(len(mask_rcnn._COCO_CATEGORIES))
 class_names=mask_rcnn._COCO_CATEGORIES
 model = maskrcnn_resnet50_fpn_v2(pretrained=True)
 model.eval()
-# model.cuda()
+# if torch.cuda.is_available():
+#    model.cuda()
 
 colors = []
 for _ in range(50):
@@ -118,7 +120,9 @@ def load_mask_rcnn(image):
     ])
     
     img_tensor = preprocess(img)
-    # img_tensor = img_tensor.unsqueeze(0).cuda()
+    #if torch.cuda.is_available():
+    #    img_tensor = img_tensor.unsqueeze(0).cuda()
+    #else:
     img_tensor = img_tensor.unsqueeze(0)
     
     # print(img_tensor.shape)
@@ -149,13 +153,16 @@ def mask_download_image(image):
     filename = "image_mask.jpg"
     mime_type = "image/jpg"
     st.download_button(
-        label="이미지 다운로드",
+        label="마스크 다운로드",
         data=image_bytes,
         file_name=filename,
         mime=mime_type,
+        use_container_width=True
     )
 def osop_download_image(image):
     """numpy 배열의 이미지를 다운로드합니다."""
+    print(type(image))
+    image=cv2.cvtColor(np.array(image),cv2.COLOR_BGR2RGB)
     succ, enc_image = cv2.imencode('.jpg', image)
     image_bytes = enc_image.tobytes()
     
@@ -166,14 +173,17 @@ def osop_download_image(image):
         data=image_bytes,
         file_name=filename,
         mime=mime_type,
+        use_container_width=True
     )
 
- 
+import io
 
 ### object remove & lama painting ###
-def remove_lama():
-    pass
-
+def remove_lama(image, mask):
+    # model._load_from_state_dict('web\\lama_model\\best.ckpt')
+    lama = SimpleLama()
+    result = lama(image, mask)
+    return result
 
 
 st.title("ONE SHOT ONE PICK", anchor="/")
@@ -183,7 +193,7 @@ st.title("ONE SHOT ONE PICK", anchor="/")
 empty1, con1, empty2 = st.columns([1,8,1])
 
 datas=[]
-
+pick_image=[]
 
 with empty1:
     st.empty()
@@ -227,7 +237,8 @@ with con1:
                     st.image(mask_img,channels='RGB',use_column_width=True)
 
                     if st.button('제거하기',use_container_width=True):
-                        remove_lama()
+                        result=remove_lama(img, mask)
+                        pick_image.append(result)
                 else:
                     st.info('제거 요소를 선택하세요.', icon="ℹ️")
             else:
@@ -237,14 +248,14 @@ with con1:
     with tab2:
         col1, col2 = st.columns([7,3])
         with col1:
-            if pick_image:
-                st.image(pick_image,use_column_width=True)
+            if len(pick_image):
+                st.image(pick_image[-1],use_column_width=True)
             else:
                 st.image('web/assets/not_found_img.png',use_column_width=True)
 
         with col2:
-            if pick_image:
-                osop_download_image(pick_image)
+            if len(pick_image):
+                osop_download_image(pick_image[-1])
             else:
                 st.warning('다운받을 이미지가 없습니다!')
     
