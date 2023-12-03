@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 import importlib
 
-print(len(mask_rcnn._COCO_CATEGORIES))
+# print(len(mask_rcnn._COCO_CATEGORIES))
 class_names=mask_rcnn._COCO_CATEGORIES
 model = maskrcnn_resnet50_fpn_v2(pretrained=True)
 model.eval()
@@ -106,8 +106,48 @@ def masking_img(img, datas):
 
     return img, c_mask
 
+def masking_img2box(img, datas):
+    global colors
+    mask=None
+    masks=[]
+
+    for box in datas:
+        x,y,w,h = box
+
+        color=colors[random.randint(0,49)]
+
+        if isinstance(box, np.ndarray):
+            
+            mask = np.zeros(img.shape[:2],dtype=np.uint8)
+            mask=np.stack([mask]*3, axis=-1)
+            
+            cv2.rectangle(mask,(x,y),(w,h),(255,255,255),-1)
+            _,mask_color=cv2.threshold(mask,0.5,255,cv2.THRESH_BINARY)
+            
+            # mask_color=cv2.imdecode()
+            for i in range(3):
+                mask_color[..., i][mask_color[..., i] == 255] = color[i]
+
+            alpha = ((mask_color >0).max(axis=2)*128).astype(np.uint8)
+            rgba_mask = np.concatenate([mask_color, alpha[:,:, np.newaxis]], axis=2)
+            image_rgba = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
+            image_rgba = cv2.addWeighted(image_rgba, 1, rgba_mask, 0.7, 0, dtype = cv2.CV_8U)
+
+            masks.append(cv2.cvtColor(rgba_mask,cv2.COLOR_RGBA2BGR))
+
+            img = cv2.cvtColor(image_rgba, cv2.COLOR_RGBA2BGR)
+    c_mask=np.zeros(img.shape[:2],dtype=np.uint8)
+    c_mask=np.stack([c_mask]*3, axis=-1)
+    for m in masks:
+        c_mask=np.add(c_mask,m,dtype=np.float32)
+    c_mask=cv2.cvtColor(c_mask, cv2.COLOR_BGR2GRAY)
+    _,c_mask=cv2.threshold(c_mask,0.5,255,cv2.THRESH_BINARY)
+
+    return img, c_mask
+
 def load_mask_rcnn(image):
     masks={}
+    boxes={}
     file_byte=np.array(bytearray(image.read()),dtype=np.uint8)
     # print(type(file_byte))
     
@@ -128,22 +168,24 @@ def load_mask_rcnn(image):
     # print(img_tensor.shape)
     
     predict = model(img_tensor)
-    # print(predict)
+    # print(predict[0])
     predict=predict[0]
 
     for i in range(len(predict['labels'])):
         if predict['scores'].data[i].item() > 0.8:
             img_mask = (predict['masks'][i].squeeze(0).detach().cpu().numpy())
+            bboxes = predict['boxes'][i].detach().cpu().numpy().astype('int')
             
             img_mask=np.stack([img_mask]*3, axis=-1)
             masks[f'{i+1}번']=img_mask
+            boxes[f'{i+1}번']=bboxes
 
             # print(img.shape)
             if mask_rcnn._COCO_CATEGORIES[predict['labels'][i]] not in categories:
                 categories.append(mask_rcnn._COCO_CATEGORIES[predict['labels'][i]])
             # show mask image
             #st.image(img)
-    return img, masks
+    return img, masks, boxes
 
 def mask_download_image(image):
     """numpy 배열의 이미지를 다운로드합니다."""
@@ -161,7 +203,7 @@ def mask_download_image(image):
     )
 def osop_download_image(image):
     """numpy 배열의 이미지를 다운로드합니다."""
-    print(type(image))
+    # print(type(image))
     image=cv2.cvtColor(np.array(image),cv2.COLOR_BGR2RGB)
     succ, enc_image = cv2.imencode('.jpg', image)
     image_bytes = enc_image.tobytes()
@@ -194,6 +236,7 @@ st.image(logo,width=300)
 empty1, con1, empty2 = st.columns([1,8,1])
 
 datas=[]
+m_datas=[]
 pick_image=[]
 
 with empty1:
@@ -208,7 +251,7 @@ with con1:
         with col1:
             if image:
                     st.image(image,use_column_width=True)
-                    img, masks=load_mask_rcnn(image=image)
+                    img, masks, bboxes=load_mask_rcnn(image=image)
             else:
                 st.image('web/assets/not_found_img.png', use_column_width=True)
 
@@ -225,12 +268,17 @@ with con1:
 
                 for key, val in masks.items():
                     if key in select_oj_list:
+                        m_datas.append(val)
+                for key, val in bboxes.items():
+                    if key in select_oj_list:
                         datas.append(val)
 
                 # 미리보기 & 제거
                 if len(datas)>0:
                     # print(datas)
-                    mask_img, mask = masking_img(img,datas)
+                    mask_img, mask = masking_img(img,m_datas)
+                    box_img, box = masking_img2box(img,datas)
+                    
                     st.image(np.stack([mask]*3, axis=-1),channels='BGR',clamp=True,use_column_width=True)
                     mask_download_image(mask)
                         
@@ -238,7 +286,7 @@ with con1:
                     st.image(mask_img,channels='RGB',use_column_width=True)
 
                     if st.button('제거하기',use_container_width=True):
-                        result=remove_lama(img, mask)
+                        result=remove_lama(img, box)
                         pick_image.append(result)
                 else:
                     st.info('제거 요소를 선택하세요.', icon="ℹ️")

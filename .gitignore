@@ -157,3 +157,5 @@ cython_debug/
 *.json
 *.jpeg
 *.png
+
+lama_cleaner/
